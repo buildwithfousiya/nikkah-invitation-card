@@ -24,29 +24,7 @@ const musicPillDet = document.getElementById('musicPillDetails');
 let musicStarted = false;  // has audio.play() ever succeeded?
 let musicMuted = false;  // is it currently muted?
 
-/* ════════════════════════════════════════════
-   AUDIO UNLOCK — iOS Safari requires a play()
-   call during a user gesture before any later
-   play() will succeed. We trigger a silent
-   play/pause on the very first touch so that
-   by the time the swipe completes, the audio
-   context is already unlocked.
-════════════════════════════════════════════ */
-(function unlockAudioOnFirstTouch() {
-  if (!bgMusic) return;
-  function unlock() {
-    bgMusic.muted = true;
-    bgMusic.play().then(() => {
-      bgMusic.pause();
-      bgMusic.currentTime = 0;
-      bgMusic.muted = false;
-    }).catch(() => { });
-    document.removeEventListener('touchstart', unlock, true);
-    document.removeEventListener('mousedown', unlock, true);
-  }
-  document.addEventListener('touchstart', unlock, { capture: true, once: true, passive: true });
-  document.addEventListener('mousedown', unlock, { capture: true, once: true });
-})();
+
 
 /* ════════════════════════════════════════════
    COUNTDOWN TIMER
@@ -174,14 +152,22 @@ setInterval(updateCountdown, 1000);
     // bgMusic.play() must be called within the touchend/mouseup
     // event handler — any setTimeout breaks the autoplay policy.
     if (bgMusic && !musicStarted) {
+      bgMusic.muted = false;
       bgMusic.volume = 0;
       bgMusic.play().then(() => {
         musicStarted = true;
-        musicMuted = false;
+        musicMuted   = false;
         updateMusicUI();
         fadeVolume(0, 0.55, 2000);
-      }).catch(() => {
-        // Autoplay blocked — user can tap the music pill to start
+      }).catch((err) => {
+        console.warn("Autoplay blocked/failed:", err);
+        // Fallback: try playing again without fading volume
+        bgMusic.play().then(() => {
+          musicStarted = true;
+          musicMuted = false;
+          bgMusic.volume = 0.55;
+          updateMusicUI();
+        }).catch(() => {});
       });
     }
 
